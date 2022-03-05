@@ -3,6 +3,7 @@
 const express = require("express");
 const url = require('url');
 const lodash = require('lodash');
+const mongoose = require('mongoose');
 
 const homeStartingContent = "Lacus vel facilisis volutpat est velit egestas dui id ornare. Semper auctor neque vitae tempus quam. Sit amet cursus sit amet dictum sit amet justo. Viverra tellus in hac habitasse. Imperdiet proin fermentum leo vel orci porta. Donec ultrices tincidunt arcu non sodales neque sodales ut. Mattis molestie a iaculis at erat pellentesque adipiscing. Magnis dis parturient montes nascetur ridiculus mus mauris vitae ultricies. Adipiscing elit ut aliquam purus sit amet luctus venenatis lectus. Ultrices vitae auctor eu augue ut lectus arcu bibendum at. Odio euismod lacinia at quis risus sed vulputate odio ut. Cursus mattis molestie a iaculis at erat pellentesque adipiscing.";
 const aboutContent = "Hac habitasse platea dictumst vestibulum rhoncus est pellentesque. Dictumst vestibulum rhoncus est pellentesque elit ullamcorper. Non diam phasellus vestibulum lorem sed. Platea dictumst quisque sagittis purus sit. Egestas sed sed risus pretium quam vulputate dignissim suspendisse. Mauris in aliquam sem fringilla. Semper risus in hendrerit gravida rutrum quisque non tellus orci. Amet massa vitae tortor condimentum lacinia quis vel eros. Enim ut tellus elementum sagittis vitae. Mauris ultrices eros in cursus turpis massa tincidunt dui.";
@@ -15,13 +16,31 @@ app.set('view engine', 'ejs');
 app.use(express.urlencoded({extended: true}));
 app.use(express.static("public"));
 
+mongoose.connect('mongodb://localhost:27017/blogDB').catch(err=> {
+  if (err)
+  console.log(err);
+});
+
+const blogItemSchema = mongoose.Schema({
+  title : String,
+  content : String
+});
+
+const blogItem = mongoose.model("blogItem" , blogItemSchema);
 
 app.get("/" , (req,res)=>{
-  let data={
-    homeStartingContent : homeStartingContent,
-    postList : postList,
-  };
-  res.render("home",data);
+  blogItem.find({}, (err, foundBlogPosts) => {
+    if (!err){
+      console.log(foundBlogPosts);
+      let data={
+        homeStartingContent : homeStartingContent,
+        postList : foundBlogPosts,
+      };
+      res.render("home",data);
+    }
+
+  });
+
 });
 
 
@@ -46,25 +65,46 @@ app.get("/compose" , (req,res)=> {
 });
 
 app.post("/compose" , (req,res)=> {
-  postList.push({title: req.body.comTitle, content : req.body.comContent});
-  console.log(postList);
+  let tempBlogItem = new blogItem ({title: req.body.comTitle, content : req.body.comContent});
+  // postList.push({title: req.body.comTitle, content : req.body.comContent});
+  // console.log(postList);
+  tempBlogItem.save().then(() => console.log("added new blog post"));
   res.render("compose");
 });
 
 
-app.get("/posts/:title" , (req,res)=> {
+app.get("/posts/:id" , (req,res)=> {
   // let currTitle = new URL(req.headers.host + req.originalUrl).searchParams.get('title'); // url /post?title=xyz
-  let currTitle = req.params.title;
-  let result = getPostByTitle(currTitle);
+  let currId = req.params.id;
+  // let result = getPostByTitle(currTitle);
 
-  if (result === 1 )
-    result = {title : "ERORR : Post not found", content : "Something went wrong while fetching this post, please try again!"}
+  // if (result === 1 )
+  //   result = {title : "ERORR : Post not found", content : "Something went wrong while fetching this post, please try again!"};
+  //
+  // let data={
+  //   title : result.title,
+  //   content : result.content
+  // };
+  // res.render("post", data);
 
-  let data={
-    title : result.title,
-    content : result.content
-  };
-  res.render("post", data);
+  blogItem.findOne({_id : currId}, (err, foundBlogPost) => {
+    let data ;
+    if (!err){
+      console.log(foundBlogPost);
+      data = {
+        title : foundBlogPost.title,
+        content : foundBlogPost.content,
+      };
+    }
+    else {
+      data  = {title : "ERORR : Post not found", content : "Something went wrong while fetching this post, please try again!"}
+    }
+    res.render("post", data);
+  });
+
+
+
+
 });
 
 
